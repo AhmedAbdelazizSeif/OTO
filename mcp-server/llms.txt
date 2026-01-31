@@ -1,0 +1,1188 @@
+# OTO API Python Wrapper Q&A for LLMs
+
+## Authentication
+
+Q1: How do I initialize the OTO client?
+A1:
+```python
+from API.client import OTOAsyncClient
+async with OTOAsyncClient(refresh_token="YOUR_REFRESH_TOKEN") as client:
+    pass
+```
+
+Q2: How do I check if my access token is expired?
+A2:
+```python
+is_expired = client.is_token_expired()
+```
+
+Q3: How do I see when my current token expires?
+A3:
+```python
+expires_at = client.token_expires_at()
+```
+
+Q4: Does the client handle token refreshing automatically?
+A4: Yes, by default `auto_refresh=True` in `OTOAsyncClient`. It will refresh the access token if it expires before a request.
+
+Q5: How do I manually refresh the token?
+A5:
+```python
+# This is usually handled automatically, but internal method is:
+await client._refresh_access_token()
+```
+
+Q6: How do I change the timeout for requests?
+A6:
+```python
+async with OTOAsyncClient(refresh_token="...", timeout=60.0) as client:
+    pass
+```
+
+Q7: How do I use the client against the staging environment?
+A7:
+```python
+async with OTOAsyncClient(refresh_token="...", base_url="https://api-staging.tryoto.com") as client:
+    pass
+```
+
+## Order Management
+
+Q8: How do I create a simple order?
+A8:
+```python
+from API.models import CreateOrderRequest, PaymentMethod, Customer, OrderItem
+request = CreateOrderRequest(
+    order_id="123", payment_method=PaymentMethod.PAID, amount=100, amount_due=0, currency="SAR",
+    customer=Customer(name="John", mobile="+9665...", address="Riyadh", city="Riyadh", country="SA"),
+    items=[OrderItem(product_id="P1", name="Item 1", price=100, quantity=1)]
+)
+resp = await client.create_order(request)
+```
+
+Q9: How do I create a Cash on Delivery (COD) order?
+A9:
+```python
+request = CreateOrderRequest(
+    order_id="124", payment_method=PaymentMethod.COD, amount=200, amount_due=200, currency="SAR", ...
+)
+await client.create_order(request)
+```
+
+Q10: How do I cancel an order?
+A10:
+```python
+resp = await client.cancel_order("ORDER_ID_123")
+```
+
+Q11: How do I update existing order notes?
+A11:
+```python
+from API.models import UpdateOrderRequest
+await client.update_order(UpdateOrderRequest(order_id="123", shipping_notes="Call before delivery"))
+```
+
+Q12: How do I get details for a specific order?
+A12:
+```python
+details = await client.get_order_details("ORDER_ID_123")
+```
+
+Q13: How do I search for orders by status?
+A13:
+```python
+orders = await client.get_orders(status="delivered")
+```
+
+Q14: How do I search for orders by date range?
+A14:
+```python
+orders = await client.get_orders(from_date="2024-01-01", to_date="2024-01-31")
+```
+
+Q15: How do I put an order on hold?
+A15:
+```python
+await client.hold_order(order_id="123", on_hold_reason="Checking stock")
+```
+
+Q16: How do I release an order from hold?
+A16:
+```python
+await client.unhold_order("123")
+```
+
+Q17: How to check if an order can be fulfilled from a location?
+A17:
+```python
+from API.models import CheckOrderAvailabilityRequest
+resp = await client.check_order_availability(CheckOrderAvailabilityRequest(order_id="123"))
+```
+
+Q18: How do I filter orders by customer phone?
+A18:
+```python
+orders = await client.get_orders(customer_phone="+966500000000")
+```
+
+Q19: How do I bulk update order statuses?
+A19:
+```python
+from API.models import UpdateOrderStatusRequest
+await client.update_order_status(UpdateOrderStatusRequest(order_ids=["1","2"], status="delivered"))
+```
+
+## Shipment Management
+
+Q20: How do I create a shipment for an order?
+A20:
+```python
+from API.models import CreateShipmentRequest
+resp = await client.create_shipment(CreateShipmentRequest(order_id="123"))
+```
+
+Q21: How do I create a shipment with a specific carrier?
+A21:
+```python
+resp = await client.create_shipment(CreateShipmentRequest(order_id="123", delivery_option_id="5"))
+```
+
+Q22: How do I specify picking type as Drop Off?
+A22:
+```python
+from API.models import PickingType
+resp = await client.create_shipment(CreateShipmentRequest(
+    order_id="123", picking_type=PickingType.BRANCH_DROP_OFF
+))
+```
+
+Q23: How do I cancel a shipment?
+A23:
+```python
+await client.cancel_shipment(order_id="123", shipment_id="SHIP_001")
+```
+
+Q24: How do I track a shipment by order ID?
+A24:
+```python
+status = await client.get_order_status("123")
+print(status.status)
+```
+
+Q25: How do I track a shipment using the carrier's tracking number?
+A25:
+```python
+from API.models import TrackShipmentRequest
+resp = await client.track_shipment(TrackShipmentRequest(
+    tracking_number="123456", delivery_company_name="aramex", status_history=True
+))
+```
+
+Q26: How do I get the AWB (shipping label) URL?
+A26:
+```python
+awb = await client.print_awb("123")
+print(awb.print_awb_url)
+```
+
+Q27: How do I get shipment history/transactions?
+A27:
+```python
+txns = await client.get_shipment_transactions(from_date="2024-01-01")
+```
+
+Q28: How do I get shipping price breakdown for an order?
+A28:
+```python
+prices = await client.get_shipping_price_transactions(order_id="123")
+```
+
+## Returns
+
+Q29: How do I create a return shipment?
+A29:
+```python
+from API.models import CreateReturnShipmentRequest
+await client.create_return_shipment(CreateReturnShipmentRequest(order_id="123"))
+```
+
+Q30: How do I get a return portal link for a customer?
+A30:
+```python
+link = await client.get_return_link("123")
+print(link.return_link)
+```
+
+Q31: How do I trigger an SMS for returns?
+A31:
+```python
+await client.trigger_return_sms("123")
+```
+
+Q32: How do I check the details of a return?
+A32:
+```python
+details = await client.get_return_details("123")
+```
+
+## Delivery Fees & Coverage
+
+Q33: How do I check OTO marketplace delivery fees?
+A33:
+```python
+from API.models import CheckOTODeliveryFeeRequest
+fees = await client.check_oto_delivery_fee(CheckOTODeliveryFeeRequest(
+    origin_city="Riyadh", destination_city="Jeddah", weight=1.0
+))
+```
+
+Q34: How do I check fees for my contracted carriers?
+A34:
+```python
+from API.models import CheckDeliveryFeeRequest
+fees = await client.check_delivery_fee(CheckDeliveryFeeRequest(
+    origin_city="Riyadh", destination_city="Jeddah", weight=1.0
+))
+```
+
+Q35: How do I filter delivery fees by COD amount?
+A35:
+```python
+fees = await client.get_delivery_fee(GetDeliveryFeeRequest(
+    origin_city="Riyadh", destination_city="Jeddah", weight=1.0, total_due=100.0
+))
+```
+
+Q36: How do I get estimated delivery time?
+A36:
+```python
+est = await client.get_delivery_estimation(GetDeliveryEstimationRequest(
+    origin_city="Riyadh", destination_city="Jeddah", delivery_option_id=5
+))
+```
+
+Q37: How do I check if a route is covered?
+A37:
+```python
+cov = await client.check_coverage(CheckCoverageRequest(origin_city="A", destination_city="B"))
+```
+
+## Locations (Warehouses/Branches)
+
+Q38: How do I create a new warehouse?
+A38:
+```python
+from API.models import CreatePickupLocationRequest, PickupLocationType
+await client.create_pickup_location(CreatePickupLocationRequest(
+    name="WH1", code="WH1", mobile="+966...", city="Riyadh", country="SA", 
+    address="Addr", contact_name="Ali", contact_email="ali@ex.com", type=PickupLocationType.WAREHOUSE
+))
+```
+
+Q39: How do I list all my pickup locations?
+A39:
+```python
+locs = await client.get_pickup_locations()
+```
+
+Q40: How do I update a pickup location's phone?
+A40:
+```python
+from API.models import UpdatePickupLocationRequest
+await client.update_pickup_location(UpdatePickupLocationRequest(code="WH1", mobile="+96655..."))
+```
+
+## Products & Inventory
+
+Q41: How do I create a product?
+A41:
+```python
+from API.models import CreateProductRequest
+await client.create_product(CreateProductRequest(sku="SKU1", product_name="P1", price="10.0"))
+```
+
+Q42: How do I list all products?
+A42:
+```python
+prods = await client.get_products(page_size=50)
+```
+
+Q43: How do I update stock quantity (set value)?
+A43:
+```python
+from API.models import UpdateStockQuantityRequest
+await client.update_stock_quantity(UpdateStockQuantityRequest(sku="SKU1", quantity=100, action_type="set"))
+```
+
+Q44: How do I increment stock?
+A44:
+```python
+await client.update_stock_quantity(UpdateStockQuantityRequest(sku="SKU1", quantity=5, action_type="increment"))
+```
+
+Q45: How do I specify which warehouse to update stock for?
+A45:
+```python
+await client.update_stock_quantity(UpdateStockQuantityRequest(
+    sku="SKU1", quantity=5, action_type="set", warehouse_code="WH1"
+))
+```
+
+## Brands & Config
+
+Q46: How do I create a brand?
+A46:
+```python
+from API.models import CreateBrandRequest
+await client.create_brand(CreateBrandRequest(store_name="Brand X"))
+```
+
+Q47: How do I list all brands?
+A47:
+```python
+brands = await client.get_brands()
+```
+
+Q48: How do I add a box type?
+A48:
+```python
+from API.models import AddBoxRequest
+await client.add_box(AddBoxRequest(name="Small", length=10, width=10, height=10))
+```
+
+Q49: How do I get all box types?
+A49:
+```python
+boxes = await client.get_boxes()
+```
+
+## Error Handling
+
+Q50: How do I handle invalid input errors?
+A50:
+```python
+from API.exceptions import OTOValidationError
+try:
+    await client.create_order(...)
+except OTOValidationError as e:
+    print(f"Validation failed: {e}")
+```
+
+Q51: How do I handle authentication errors?
+A51:
+```python
+from API.exceptions import OTOAuthenticationError
+try:
+    await client.get_orders()
+except OTOAuthenticationError:
+    print("Check your refresh token!")
+```
+
+Q52: How do I handle network timeouts?
+A52:
+```python
+from API.exceptions import OTONetworkError
+try:
+    await client.create_order(...)
+except OTONetworkError:
+    print("Network down, retry later")
+```
+
+Q53: How do I handle not found errors?
+A53:
+```python
+from API.exceptions import OTONotFoundError
+try:
+    await client.cancel_order("NON_EXISTENT")
+except OTONotFoundError:
+    print("Order not found")
+```
+
+## Advanced
+
+Q54: How do I get available cities for a country?
+A54:
+```python
+cities = await client.get_cities(country="SA")
+```
+
+Q55: How do I use the client in a `with` block?
+A55: The client is an async context manager: `async with OTOAsyncClient(...) as client:`
+
+Q56: How do I manually close the client if not using `with`?
+A56: It is recommended to use `with`, but you can call `await client.client.aclose()` if accessing the internal httpx client, though no public close method is exposed directly.
+
+Q57: What happens if I make a request without a token?
+A57: The client requires a refresh token at init. It will raise `OTOAuthenticationError` if it cannot obtain an access token.
+
+Q58: How do I pass custom headers?
+A58: The client handles headers internally. You cannot pass custom headers to public methods directly without subclassing.
+
+Q59: Is the client thread-safe?
+A59: The client is async-based (`asyncio`). It is safe to use in async tasks. The token refresh logic uses an `asyncio.Lock`.
+
+Q60: How do I access the raw HTTP response?
+A60: The public methods return Pydantic models. To get raw data, you would need to use `client._request` (if you are extending the class).
+
+Q61: How do I create a product with a barcode?
+A61:
+```python
+req = CreateProductRequest(sku="123", product_name="Name", price="10", barcode="123456789")
+await client.create_product(req)
+```
+
+Q62: Can I create an order with multiple items?
+A62:
+```python
+items = [OrderItem(...), OrderItem(...)]
+req = CreateOrderRequest(..., items=items)
+await client.create_order(req)
+```
+
+## Request & Response Structures (Structural Q&A)
+
+Q63: What are the required fields in `CreateOrderRequest`?
+A63: The required fields are `order_id`, `payment_method`, `amount`, `amount_due`, `currency`, `customer` (Customer object), and `items` (List of OrderItem).
+
+Q64: What is the structure of the `Customer` model?
+A64:
+```python
+class Customer(OTOBaseModel):
+    name: str = Field(..., alias="name")
+    mobile: str = Field(..., alias="mobile")
+    address: str = Field(..., alias="address")
+    city: str = Field(..., alias="city")
+    country: str = Field(default="SA", alias="country")
+    email: Optional[str] = Field(None, alias="email")
+    district: Optional[str] = Field(None, alias="district")
+    # ... other optional fields like lat, lon, postcode
+```
+
+Q65: What is the structure of the `OrderItem` model?
+A65:
+```python
+class OrderItem(OTOBaseModel):
+    product_id: str = Field(..., alias="productId")
+    name: str = Field(..., alias="name")
+    price: float
+    quantity: int
+    row_total: float = Field(..., alias="rowTotal")
+    sku: Optional[str] = None
+    variant_id: Optional[str] = Field(None, alias="variantId")
+    image: Optional[str] = None
+    weight: Optional[float] = None
+    tax_amount: Optional[float] = Field(None, alias="taxAmount")
+```
+
+Q66: What is the full structure of `CreateOrderResponse`?
+A66:
+```python
+class CreateOrderResponse(OTOBaseModel):
+    success: bool
+    oto_id: Optional[int] = Field(None, alias="otoId")
+    message: Optional[str] = None
+    errors: Optional[List[str]] = None
+```
+
+Q67: What does `CreateShipmentRequest` look like?
+A67:
+```python
+class CreateShipmentRequest(OTOBaseModel):
+    order_id: str = Field(..., alias="orderId")
+    delivery_option_id: Optional[str] = Field(None, alias="deliveryOptionId")
+    picking_type: Optional[PickingType] = Field(None, alias="pickingType")
+    who_pays: Optional[WhoPays] = Field(None, alias="whoPays")
+    front_side_id_card: Optional[str] = Field(None, alias="frontSideIDCard")
+    back_side_id_card: Optional[str] = Field(None, alias="backSideIDCard")
+```
+
+Q68: What is the "alias" for `order_id` in JSON?
+A68: The alias is "orderId" (camelCase). Pydantic handles this conversion automatically.
+
+Q69: What is the "alias" for `payment_method` in `CreateOrderRequest`?
+A69: The alias is "payment_method" (snake_case), which is unusual for this API but defined in the model.
+
+Q70: How is `PaymentMethod` enum defined?
+A70:
+```python
+class PaymentMethod(str, Enum):
+    COD = "cod"
+    PAID = "paid"
+```
+
+Q71: What are the fields in `CreateShipmentResponse`?
+A71:
+```python
+class CreateShipmentResponse(OTOBaseModel):
+    success: bool
+    message: Optional[str] = None
+```
+
+Q72: What is the structure of `OrderTrackingResponse`?
+A72:
+```python
+class OrderTrackingResponse(OTOBaseModel):
+    order_id: Optional[str] = Field(None, alias="orderId")
+    status: Optional[str] = None
+    delivery_company: Optional[str] = Field(None, alias="deliveryCompany")
+    shipment_id: Optional[str] = Field(None, alias="shipmentId")
+    dc_tracking_number: Optional[str] = Field(None, alias="dcTrackingNumber")
+    date: Optional[str] = None
+    note: Optional[str] = None
+    delivery_slot_date: Optional[str] = Field(None, alias="deliverySlotDate")
+    print_awb_url: Optional[str] = Field(None, alias="printAWBURL")
+```
+
+Q73: How does `CheckOTODeliveryFeeRequest` structure look?
+A73:
+```python
+class CheckOTODeliveryFeeRequest(OTOBaseModel):
+    origin_city: str = Field(..., alias="originCity")
+    destination_city: str = Field(..., alias="destinationCity")
+    weight: float
+    height: Optional[float] = None
+    width: Optional[float] = None
+    length: Optional[float] = None
+    # ... lat/lon and other optional fields
+```
+
+Q74: What is the structure of `DeliveryOption` in the fee response?
+A74:
+```python
+class DeliveryOption(OTOBaseModel):
+    delivery_option_id: int = Field(alias="deliveryOptionId")
+    delivery_option_name: str = Field(alias="deliveryOptionName")
+    delivery_company_name: str = Field(alias="deliveryCompanyName")
+    price: float
+    currency: str
+    avg_delivery_time: Optional[str] = Field(None, alias="avgDeliveryTime")
+    # ... plus return_fee, cod_charge, etc.
+```
+
+Q75: What is the `CheckDeliveryFeeResponse` structure?
+A75:
+```python
+class CheckDeliveryFeeResponse(OTOBaseModel):
+    success: bool
+    delivery_company: List[DeliveryOption] = Field(default=[], alias="deliveryCompany")
+    trace_id: Optional[str] = Field(None, alias="traceId")
+```
+
+Q76: What is the structure of `GetOrdersResponse`?
+A76:
+```python
+class GetOrdersResponse(OTOBaseModel):
+    success: bool
+    orders: List[Order] = Field(default=[])
+    per_page: Optional[int] = Field(None, alias="perPage")
+    current_page: Optional[int] = Field(None, alias="currentPage")
+    total_page: Optional[int] = Field(None, alias="totalPage")
+    total_count: Optional[int] = Field(None, alias="totalCount")
+```
+
+Q77: What does the `Order` model in `GetOrdersResponse` contain?
+A77: It contains fields like `order_id`, `oto_id`, `order_date`, `payment_method`, `price`, `status`, `customer` (details), and `items` (list of items).
+
+Q78: What is the `OrderHistoryItem` structure?
+A78:
+```python
+class OrderHistoryItem(OTOBaseModel):
+    order_id: str = Field(alias="orderId")
+    status: Optional[str] = None
+    history: List[HistoryEvent] = []
+    # ... plus driver info, tracking info, branches
+```
+
+Q79: What is the `HistoryEvent` structure?
+A79:
+```python
+class HistoryEvent(OTOBaseModel):
+    date: str
+    status: str
+    description: Optional[str] = None
+```
+
+Q80: What is the structure of `CancelOrderRequest`?
+A80:
+```python
+class CancelOrderRequest(OTOBaseModel):
+    order_id: str = Field(..., alias="orderId")
+```
+
+Q81: What is the structure of `UpdateOrderRequest`?
+A81:
+```python
+class UpdateOrderRequest(OTOBaseModel):
+    order_id: str = Field(..., alias="orderId")
+    payment_method: Optional[PaymentMethod] = None
+    amount: Optional[float] = None
+    amount_due: Optional[float] = Field(None, alias="amount_due")
+    customer: Optional[Customer] = None
+    shipping_notes: Optional[str] = Field(None, alias="shippingNotes")
+    # ... other updatable fields
+```
+
+Q82: What is the structure of `CancelShipmentRequest`?
+A82:
+```python
+class CancelShipmentRequest(OTOBaseModel):
+    order_id: str = Field(..., alias="orderId")
+    shipment_id: str = Field(..., alias="shipmentId")
+```
+
+Q83: What is the structure of `TrackShipmentRequest`?
+A83:
+```python
+class TrackShipmentRequest(OTOBaseModel):
+    tracking_number: str = Field(..., alias="trackingNumber")
+    delivery_company_name: str = Field(..., alias="deliveryCompanyName")
+    status_history: bool = Field(..., alias="statusHistory")
+    brand_name: Optional[str] = Field(None, alias="brandName")
+```
+
+Q84: What is the structure of `TrackShipmentResponse`?
+A84:
+```python
+class TrackShipmentResponse(OTOBaseModel):
+    success: bool
+    tracking_url: Optional[str] = Field(None, alias="trackingUrl")
+    items: List[ShipmentTrackingItem] = []
+```
+
+Q85: What is `ShipmentTrackingItem`?
+A85: It contains `dc_status`, `oto_status`, `dc_description`, `history` (list of events), and `success` flag.
+
+Q86: What is the structure of `CreateReturnShipmentRequest`?
+A86:
+```python
+class CreateReturnShipmentRequest(OTOBaseModel):
+    order_id: str = Field(..., alias="orderId")
+    # Optional fields: deliveryOptionId, pickupLocationCode, pickingType
+    # Optional: items (List[ReturnItem])
+```
+
+Q87: What is the structure of `ReturnItem`?
+A87:
+```python
+class ReturnItem(OTOBaseModel):
+    sku: str
+    quantity: int = Field(..., ge=1)
+```
+
+Q88: What is the structure of `CreateReturnShipmentResponse`?
+A88:
+```python
+class CreateReturnShipmentResponse(OTOBaseModel):
+    success: bool
+    msg: Optional[str] = None
+```
+
+Q89: What is the `RefreshTokenRequest` structure?
+A89:
+```python
+class RefreshTokenRequest(OTOBaseModel):
+    refresh_token: str = Field(..., description="Permanent refresh token")
+```
+
+Q90: What is the `RefreshTokenResponse` structure?
+A90:
+```python
+class RefreshTokenResponse(OTOBaseModel):
+    access_token: str
+    refresh_token: str
+    success: bool
+    token_type: str = "Bearer"
+    expires_in: str
+```
+
+Q91: What is the `CreatePickupLocationRequest` structure?
+A91:
+```python
+class CreatePickupLocationRequest(OTOBaseModel):
+    name: str
+    code: str
+    mobile: str
+    city: str
+    country: str
+    address: str
+    contact_name: str = Field(..., alias="contactName")
+    contact_email: str = Field(..., alias="contactEmail")
+    type: Optional[PickupLocationType] = None
+    # ... lat, lon, etc.
+```
+
+Q92: What is the `CreatePickupLocationResponse` structure?
+A92:
+```python
+class CreatePickupLocationResponse(OTOBaseModel):
+    success: bool
+    warehouse_id: Optional[str] = Field(None, alias="warhouseId") # Note typo in API 'warhouseId'
+    pickup_location_code: Optional[str] = Field(None, alias="pickupLocationCode")
+    message: Optional[str] = None
+```
+
+Q93: What is the structure of `CreateBrandRequest`?
+A93:
+```python
+class CreateBrandRequest(OTOBaseModel):
+    store_name: str = Field(..., alias="storeName")
+    logo: Optional[str] = None
+    # ... optional defaultWarehouseID and stores list
+```
+
+Q94: What is the structure of `CreateBrandResponse`?
+A94:
+```python
+class CreateBrandResponse(OTOBaseModel):
+    success: bool
+    client_store_id: Optional[int] = Field(None, alias="clientStoreId")
+```
+
+Q95: What is the structure of `AddBoxRequest`?
+A95:
+```python
+class AddBoxRequest(OTOBaseModel):
+    name: str
+    length: float
+    width: float
+    height: float
+```
+
+Q96: What is the structure of `GetBoxResponse`?
+A96:
+```python
+class GetBoxResponse(OTOBaseModel):
+    success: bool
+    boxes: List[Box] = []
+```
+
+Q97: What is the `Box` model structure?
+A97:
+```python
+class Box(OTOBaseModel):
+    id: int
+    box_name: str = Field(alias="boxName")
+    length: float
+    width: float
+    height: float
+```
+
+Q98: What is the structure of `CreateProductRequest`?
+A98:
+```python
+class CreateProductRequest(OTOBaseModel):
+    sku: str
+    product_name: str = Field(..., alias="productName")
+    price: str
+    # ... optional taxAmount, description, product_image, etc.
+```
+
+Q99: What is `UpdateStockQuantityRequest` structure with alias?
+A99:
+```python
+class UpdateStockQuantityRequest(OTOBaseModel):
+    sku: str
+    quantity: int
+    action_type: str = Field(..., alias="actionType") # "set", "increment", "decrement"
+    warehouse_code: Optional[str] = Field(None, alias="warehouseCode")
+```
+
+Q100: What is the generic `SuccessResponse` structure?
+A100:
+```python
+class SuccessResponse(OTOBaseModel):
+    success: bool
+    message: Optional[str] = None
+```
+
+Q101: What is the generic `ErrorResponse` structure?
+A101:
+```python
+class ErrorResponse(OTOBaseModel):
+    success: bool = False
+    oto_error_code: Optional[str] = Field(None, alias="otoErrorCode")
+    oto_error_message: Optional[str] = Field(None, alias="otoErrorMessage")
+```
+
+Q102: How does `OrderDetailsResponse` relate to `Order`?
+A102: `OrderDetailsResponse` inherits from the `Order` model, so it contains all the `Order` fields plus potentially more detailed nested relations if applicable.
+
+Q103: What fields are in the `Order` model?
+A103: `order_id` ("orderId"), `oto_id` ("otoId"), `order_date` ("orderDate"), `payment_method` ("payment_method"), `price`, `amount_due` ("amount_due"), `shipping_amount` ("shipping_amount"), `discount`, `tax`, `currency`, `status`, `customer`, `items`.
+
+Q104: What is `GetPickupLocationListResponse` structure?
+A104:
+```python
+class GetPickupLocationListResponse(OTOBaseModel):
+    success: bool
+    warehouses: List[PickupLocation] = []
+    branches: List[PickupLocation] = []
+```
+
+Q105: What is the structure of `PickupLocation`?
+A105:
+```python
+class PickupLocation(OTOBaseModel):
+    id: int
+    code: str
+    name: str
+    address: str
+    city: str
+    contact_person: Optional[str] = Field(None, alias="contactPerson")
+    contact_phone: Optional[str] = Field(None, alias="contactPhone")
+    # ... lat, lon, etc.
+```
+
+Q106: What JSON key corresponds to `Customer.mobile`?
+A106: The JSON key is `"mobile"`.
+
+Q107: What JSON key corresponds to `Customer.name`?
+A107: The JSON key is `"name"`.
+
+Q108: What JSON key corresponds to `OrderItem.product_id`?
+A108: The JSON key is `"productId"`.
+
+Q109: What JSON key corresponds to `OrderItem.row_total`?
+A109: The JSON key is `"rowTotal"`.
+
+Q110: What JSON key corresponds to `CreateOrderRequest.payment_method`?
+A110: The JSON key is `"payment_method"`.
+
+Q111: What JSON key corresponds to `CreateOrderRequest.order_id`?
+A111: The JSON key is `"orderId"`.
+
+Q112: What JSON key corresponds to `CreateOrderRequest.amount_due`?
+A112: The JSON key is `"amount_due"`.
+
+Q113: What JSON key corresponds to `CreateShipmentRequest.delivery_option_id`?
+A113: The JSON key is `"deliveryOptionId"`.
+
+Q114: What JSON key corresponds to `CreateShipmentRequest.picking_type`?
+A114: The JSON key is `"pickingType"`.
+
+Q115: What JSON key corresponds to `CheckOTODeliveryFeeRequest.origin_city`?
+A115: The JSON key is `"originCity"`.
+
+Q116: What JSON key corresponds to `PrintAWBResponse.print_awb_url`?
+A116: The JSON key is `"printAWBURL"`.
+
+Q117: What JSON key corresponds to `OrderTrackingResponse.dc_tracking_number`?
+A117: The JSON key is `"dcTrackingNumber"`.
+
+Q118: What JSON key corresponds to `GetOrdersResponse.per_page`?
+A118: The JSON key is `"perPage"`.
+
+Q119: What JSON key corresponds to `Brand.store_name`?
+A119: The JSON key is `"storeName"`.
+
+Q120: What JSON key corresponds to `Brand.company_id`?
+A120: The JSON key is `"companyId"`.
+
+Q121: What JSON key corresponds to `UpdateStockQuantityRequest.action_type`?
+A121: The JSON key is `"actionType"`.
+
+Q122: What JSON key corresponds to `UpdateStockQuantityRequest.warehouse_code`?
+A122: The JSON key is `"warehouseCode"`.
+
+Q123: What JSON key corresponds to `CreateProductRequest.product_name`?
+A123: The JSON key is `"productName"`.
+
+Q124: What JSON key corresponds to `CreateProductRequest.hs_code`?
+A124: The JSON key is `"hsCode"`.
+
+Q125: What JSON key corresponds to `CreateProductRequest.bundle_items`?
+A125: The JSON key is `"bundleItems"`.
+
+Q126: What JSON key corresponds to `OrderHistoryItem.driver_name`?
+A126: The JSON key is `"driverName"`.
+
+Q127: What JSON key corresponds to `OrderHistoryItem.tracking_url`?
+A127: The JSON key is `"trackingUrl"`.
+
+Q128: What is the response when a validation error occurs?
+A128: The API typically returns a 400 status. The client raises `OTOValidationError`. The raw response body (if accessible) would contain `success: false`, `otoErrorCode`, and `otoErrorMessage`.
+
+Q129: What is the response when authentication fails?
+A129: The API returns a 401 status. The client raises `OTOAuthenticationError`.
+
+Q130: What is the response when a resource is not found?
+A130: The API returns a 404 status. The client raises `OTONotFoundError`. The body may contain `otoErrorCode: OTO1002` (Order is not exist).
+
+Q131: What is the response when credit is insufficient?
+A131: The API returns a 400 status. The client raises `OTOInsufficientCreditError` if the error code is `OTO1006`.
+
+Q132: What is the structure of `RefundTokenResponse`?
+A132: It uses `RefreshTokenResponse` structure: `access_token`, `refresh_token`, `success` (True), `token_type` ("Bearer"), `expires_in` (seconds).
+
+Q133: What is the structure of `SenderInformation`?
+A133:
+```python
+class SenderInformation(OTOBaseModel):
+    name: str = Field(..., alias="name")
+    mobile: str = Field(..., alias="mobile")
+    email: str = Field(..., alias="email")
+    address: str = Field(..., alias="address")
+    city: str = Field(..., alias="city")
+    country: str = Field(default="SA", alias="country")
+    # ... district, lat, lon
+```
+
+Q134: How is `SenderInformation` used?
+A134: It is an optional field in `CreateOrderRequest` to override the default sender location/info from the account settings.
+
+Q135: What is `CheckOrderAvailabilityResponse` structure?
+A135:
+```python
+class CheckOrderAvailabilityResponse(OTOBaseModel):
+    success: bool
+    order_availability: Optional[str] = Field(None, alias="orderAvailability")
+    locations: List[AvailableLocation] = []
+```
+
+Q136: What is `AvailableLocation` structure?
+A136:
+```python
+class AvailableLocation(OTOBaseModel):
+    location_name: str = Field(alias="locationName")
+    location_code: str = Field(alias="locationCode")
+    distance: float
+    location_coordinates: LocationCoordinates
+```
+
+Q137: What is `LocationCoordinates` structure?
+A137:
+```python
+class LocationCoordinates(OTOBaseModel):
+    lat: float
+    lon: float
+```
+
+Q138: What is `ShipmentTransaction` structure?
+A138:
+```python
+class ShipmentTransaction(OTOBaseModel):
+    shipment_number: Optional[str]
+    order_id: Optional[str]
+    shipment_creation_date: Optional[str]
+    delivery_company_name: Optional[str]
+    dc_charge: Optional[float]
+    status: Optional[str]
+    # ... and others
+```
+
+Q139: What is `ShipmentTransactionsResponse` structure?
+A139:
+```python
+class ShipmentTransactionsResponse(OTOBaseModel):
+    success: bool
+    shipments: List[ShipmentTransaction] = []
+```
+
+Q140: What is `ShippingPriceTransaction` structure?
+A140:
+```python
+class ShippingPriceTransaction(OTOBaseModel):
+    id: int = Field(alias="ID")
+    amount: float
+    order_id: Optional[str] = Field(None, alias="orderID")
+    delivery_name: Optional[str] = Field(None, alias="deliveryName")
+    # ...
+```
+
+Q141: What is `GetShippingPriceTransactionsResponse` structure?
+A141:
+```python
+class GetShippingPriceTransactionsResponse(OTOBaseModel):
+    success: bool
+    count: Optional[int]
+    shipping_transactions: List[ShippingPriceTransaction]
+```
+
+Q142: What is `GetReturnLinkResponse` structure?
+A142:
+```python
+class GetReturnLinkResponse(OTOBaseModel):
+    success: bool
+    return_link: Optional[str] = Field(None, alias="returnLink")
+```
+
+Q143: What is `TriggerReturnSmsResponse` structure?
+A143:
+```python
+class TriggerReturnSmsResponse(OTOBaseModel):
+    success: bool
+    oto_id: Optional[int] = Field(None, alias="otoId")
+```
+
+Q144: What is `GetReturnDetailsRequest` structure?
+A144:
+```python
+class GetReturnDetailsRequest(OTOBaseModel):
+    order_id: str = Field(..., alias="orderId")
+```
+
+Q145: What is `GetReturnDetailsResponse` structure?
+A145:
+```python
+class GetReturnDetailsResponse(OTOBaseModel):
+    order_id: Optional[str]
+    status: Optional[str]
+    return_reason: Optional[str]
+    items: List[ReturnItemDetail]
+```
+
+Q146: What is `ReturnItemDetail` structure?
+A146:
+```python
+class ReturnItemDetail(OTOBaseModel):
+    sku: str
+    quantity_ordered: int
+    quantity_to_be_returned: Optional[int]
+```
+
+Q147: What is `HoldOrderRequest` structure?
+A147:
+```python
+class HoldOrderRequest(OTOBaseModel):
+    order_id: str = Field(..., alias="orderId")
+    on_hold_reason: str = Field(..., alias="onHoldReason")
+    on_hold_reason_lang: str = "en"
+```
+
+Q148: What is `UnholdOrderRequest` structure?
+A148:
+```python
+class UnholdOrderRequest(OTOBaseModel):
+    order_id: str = Field(..., alias="orderId")
+```
+
+Q149: What is `UpdateOrderStatusRequest` structure?
+A149:
+```python
+class UpdateOrderStatusRequest(OTOBaseModel):
+    order_ids: List[str] = Field(..., alias="orderIds")
+    status: str
+    description: Optional[str] = None
+    date: Optional[str] = None
+```
+
+Q150: What is `GetCitiesRequest` structure?
+A150:
+```python
+class GetCitiesRequest(OTOBaseModel):
+    country: str
+    per_page: Optional[int] = Field(None, alias="perPage")
+    page: Optional[int] = None
+```
+
+Q151: What is `AvailableCitiesRequest` structure?
+A151:
+```python
+class AvailableCitiesRequest(OTOBaseModel):
+    delivery_option_id: int = Field(..., alias="deliveryOptionId")
+    per_page: Optional[int] = Field(None, alias="perPage")
+```
+
+Q152: What is `AvailableTimeSlotsRequest` structure?
+A152:
+```python
+class AvailableTimeSlotsRequest(OTOBaseModel):
+    delivery_option_id: int = Field(..., alias="deliveryOptionId")
+    origin_city: str = Field(..., alias="originCity")
+    destination_city: str = Field(..., alias="destinationCity")
+```
+
+Q153: What is `RegisterRequest` structure (Marketplace)?
+A153:
+```python
+class RegisterRequest(OTOBaseModel):
+    name: str
+    email: str
+    password: str
+    mobile: str
+    company_name: str
+    country: str
+    city: str
+```
+
+Q154: What is `ProductListRequest` structure?
+A154:
+```python
+class ProductListRequest(OTOBaseModel):
+    page_size: Optional[int] = Field(None, alias="pageSize")
+    current_page: Optional[int] = Field(None, alias="currentPage")
+```
+
+Q155: What is `ProductListResponse` structure?
+A155:
+```python
+class ProductListResponse(OTOBaseModel):
+    success: bool
+    product_count: Optional[int]
+    products: List[Product]
+```
+
+Q156: What corresponds to `Product` model in `ProductListResponse`?
+A156: It contains `name`, `sku`, `barcode`, `product_image`.
+
+Q157: What is `UpdateBoxRequest` structure?
+A157:
+```python
+class UpdateBoxRequest(OTOBaseModel):
+    name: str # Box name to identify
+    length: float
+    width: float
+    height: float
+```
+
+Q158: What is `WebhookRequest` structure?
+A158:
+```python
+class WebhookRequest(OTOBaseModel):
+    url: str
+    method: str = "POST"
+    secret_key: Optional[str] = Field(None, alias="secretKey")
+    events: Optional[List[str]] = None
+```
+
+Q159: What is `WebhookResponse` structure?
+A159:
+```python
+class WebhookResponse(OTOBaseModel):
+    success: bool
+    message: Optional[str] = None
+```
+
+Q160: What is `AccountInfoResponse` structure?
+A160:
+```python
+class AccountInfoResponse(OTOBaseModel):
+    name: str
+    email: str
+    mobile: str
+    balance: float
+    currency: str
+    company_name: Optional[str] = Field(None, alias="companyName")
+    # ... and others like package_name, remaining_credit
+```
+
+Q161: What is `BuyCreditRequest` structure?
+A161:
+```python
+class BuyCreditRequest(OTOBaseModel):
+    amount: float = Field(..., gt=0, description="Amount of credit to purchase")
+```
+
+Q162: What is `BuyCreditResponse` structure?
+A162:
+```python
+class BuyCreditResponse(OTOBaseModel):
+    success: bool
+    invoice_links: Optional[str] = Field(None, alias="invoiceLinks")
+```
+
+Q163: What contains the `invoice_links` alias?
+A163: `BuyCreditResponse.invoice_links` maps to JSON key `"invoiceLinks"`.
+
+Q164: What contains the `dc_description` alias?
+A164: `ShipmentTrackingItem.dc_description` maps to JSON key `"dcDescription"`.
